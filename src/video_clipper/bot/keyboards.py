@@ -1,25 +1,41 @@
-"""
-Клавиатуры для Telegram-бота.
+"""Клавиатуры Telegram-бота."""
 
-Генерирует InlineKeyboardMarkup для модерации клипов.
-
-Реализация: этап 3.
-"""
-
-import logging
-
-logger = logging.getLogger(__name__)
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
-def get_moderation_keyboard(clip_id: int) -> object:
+def get_moderation_keyboard(video_id: int) -> InlineKeyboardMarkup:
     """
-    Сгенерировать inline-клавиатуру для модерации клипа.
+    Клавиатура модерации: Approve / Reject.
 
-    Args:
-        clip_id: ID клипа для модерации
-
-    Returns:
-        InlineKeyboardMarkup с кнопками Approve/Reject/Edit/Schedule
+    Callback data format:
+      - "approve:{video_id}"
+      - "reject:{video_id}"
     """
-    logger.warning("get_moderation_keyboard() not implemented yet (stage 3)")
-    return None
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Approve", callback_data=f"approve:{video_id}"),
+            InlineKeyboardButton(text="❌ Reject", callback_data=f"reject:{video_id}"),
+        ]
+    ])
+
+
+def format_video_info(video: dict) -> str:
+    """
+    Форматировать инфо о видео для отправки в Tech канал.
+
+    Формат:
+      📹 Канал: {chat_id}
+      ⏱ {duration}с | 📦 {size_mb}MB
+      🆔 video #{video_id}
+    """
+    duration = video.get("duration", 0)
+    size_bytes = video.get("file_size", 0)
+    size_mb = round(size_bytes / (1024 * 1024), 1) if size_bytes else 0
+    chat_id = video.get("source_chat_id", "?")
+    video_id = video.get("id", "?")
+
+    return (
+        f"📹 Канал: <code>{chat_id}</code>\n"
+        f"⏱ {duration}с | 📦 {size_mb}MB\n"
+        f"🆔 video #{video_id}"
+    )

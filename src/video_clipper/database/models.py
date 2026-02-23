@@ -441,3 +441,45 @@ class Database(ConnectionMixin):
                 """,
                 (key, value),
             )
+
+    # ------------------------------------------------------------------
+    # Sources (дополнительные методы)
+    # ------------------------------------------------------------------
+
+    async def remove_source(self, chat_id: int) -> bool:
+        """Удалить канал-источник. Возвращает True если удалён."""
+        async with self._get_connection() as conn:
+            cursor = await conn.execute(
+                "DELETE FROM sources WHERE chat_id = ?", (chat_id,)
+            )
+            return cursor.rowcount > 0
+
+    async def increment_video_count(self, chat_id: int) -> None:
+        """Увеличить счётчик видео для канала-источника."""
+        async with self._get_connection() as conn:
+            await conn.execute(
+                "UPDATE sources SET video_count = video_count + 1 WHERE chat_id = ?",
+                (chat_id,),
+            )
+
+    # ------------------------------------------------------------------
+    # Videos (дополнительные методы для Stage 2b)
+    # ------------------------------------------------------------------
+
+    async def get_video_counts_by_status(self) -> dict[str, int]:
+        """Количество видео по статусам. Для /status команды."""
+        async with self._get_connection() as conn:
+            cursor = await conn.execute(
+                "SELECT status, COUNT(*) as cnt FROM videos GROUP BY status"
+            )
+            rows = await cursor.fetchall()
+            return {row["status"]: row["cnt"] for row in rows}
+
+    async def get_pending_jobs_count(self) -> int:
+        """Количество задач в очереди (status=queued)."""
+        async with self._get_connection() as conn:
+            cursor = await conn.execute(
+                "SELECT COUNT(*) as cnt FROM jobs WHERE status = 'queued'"
+            )
+            row = await cursor.fetchone()
+            return row["cnt"] if row else 0

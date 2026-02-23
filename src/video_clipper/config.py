@@ -47,6 +47,34 @@ class Config:
     # Source channels
     source_channels: list[int] = field(default_factory=list)
 
+    # Telegram каналы
+    buffer_channel_id: int = 0
+    # Канал-буфер: хранилище пересланных видео
+
+    # Proxy
+    proxy: dict | None = None
+    # Формат: {"type": "socks5", "host": "...", "port": 1080, "username": "...", "password": "..."}
+    # Или:    {"type": "mtproto", "host": "...", "port": ..., "secret": "..."}
+    # Или None — прямое подключение
+
+    # Session
+    session_string: str = ""
+    # StringSession для Telethon (альтернатива файловой сессии)
+
+    # Download
+    max_concurrent_downloads: int = 1
+    max_file_size: int = 2 * 1024 * 1024 * 1024  # 2 GB
+
+    # Cleanup
+    cleanup_enabled: bool = True
+    cleanup_after_hours: int = 48
+
+    # Text filter
+    filter_keywords: list[str] = field(default_factory=list)
+    # Whitelist: если не пустой, caption должен содержать хотя бы одно слово
+    filter_stopwords: list[str] = field(default_factory=list)
+    # Blacklist: если caption содержит стоп-слово — пропускаем
+
     # Dev mode
     dev_mode: bool = False
     mock_gpu: bool = False
@@ -112,6 +140,15 @@ def load_config(path: str = "creds.json") -> Config:
         gpu_min_free_vram_gb=float(data.get("gpu_min_free_vram_gb", 3.0)),
         storage_base=data.get("storage_base", "./storage"),
         source_channels=list(data.get("source_channels", [])),
+        buffer_channel_id=int(data.get("buffer_channel_id", 0)),
+        proxy=data.get("proxy", None),
+        session_string=data.get("session_string", ""),
+        max_concurrent_downloads=int(data.get("max_concurrent_downloads", 1)),
+        max_file_size=int(data.get("max_file_size", 2 * 1024 * 1024 * 1024)),
+        cleanup_enabled=bool(data.get("cleanup_enabled", True)),
+        cleanup_after_hours=int(data.get("cleanup_after_hours", 48)),
+        filter_keywords=list(data.get("filter_keywords", [])),
+        filter_stopwords=list(data.get("filter_stopwords", [])),
         dev_mode=bool(data.get("dev_mode", False)),
         mock_gpu=bool(data.get("mock_gpu", False)),
         mock_selector=bool(data.get("mock_selector", False)),
