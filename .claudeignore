@@ -1,0 +1,65 @@
+# Виртуальное окружение
+.venv/
+venv/
+env/
+
+# База данных
+*.db
+*.db-journal
+*.db-wal
+
+# Кэш и временные файлы
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Логи
+logs/
+*.log
+
+# Хранилище (видео, клипы)
+storage/downloads/
+storage/clips/
+storage/temp/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+
+# Конфиги с секретами
+creds.json
+.env
+*.session
+
+# Telegram session
+*.session-journal
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# macOS
+.DS_Store
+
+# Документация (детальная - читать только по запросу)
+# CLAUDE.md и MODULE_MAP.md всегда доступны (не игнорируются)
+docs/CONTRIBUTING.md
+docs/DEVELOPMENT_STANDARDS.md
+
+# Архитектура верхнего уровня (читать только по запросу)
+# ../ARCHITECTURE.md
+# ../docs/ROADMAP.md
+
+# Тесты (раскомментируйте, если не работаете с тестами)
+# tests/

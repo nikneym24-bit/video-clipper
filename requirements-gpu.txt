@@ -1,0 +1,5 @@
+# GPU-зависимости — ставить ТОЛЬКО на машине с NVIDIA GPU
+# pip install -r requirements-gpu.txt
+
+faster-whisper>=1.1.0    # STT (CTranslate2 + CUDA)
+pynvml>=12.0.0           # NVIDIA GPU monitoring

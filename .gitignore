@@ -34,7 +34,8 @@ env/
 *.swo
 .DS_Store
 
-# Distribution
+# Distribution / Editable install
 dist/
 build/
 *.egg-info/
+src/*.egg-info/

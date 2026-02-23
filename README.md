@@ -5,8 +5,12 @@
 ## Быстрый старт (macOS)
 
 ```bash
-# Двойной клик по dev.command или:
-./dev.command
+# Двойной клик по scripts/dev.command или:
+./scripts/dev.command
+
+# Или вручную:
+pip install -e .
+python -m video_clipper
 ```
 
 ## Документация
