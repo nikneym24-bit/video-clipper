@@ -1,7 +1,7 @@
 import pytest
 import pytest_asyncio
-from video_clipper.database import Database
-from video_clipper.config import Config
+from slicr.database import Database
+from slicr.config import Config
 
 
 @pytest_asyncio.fixture

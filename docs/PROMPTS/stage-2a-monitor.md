@@ -4,23 +4,23 @@
 Ты — исполнитель. Архитектор утвердил требования. Твоя задача — реализовать Telethon-обёртку и мониторинг каналов с пересылкой по цепочке Source → Buffer → Tech. Заглушки уже созданы — ты заполняешь их реальным кодом.
 
 ## Проект
-- Путь: `/Users/dvofis/Desktop/Програмирование/Завод-нарезчик видео /video-clipper/`
+- Путь: `/Users/dvofis/Desktop/Програмирование/Завод-нарезчик видео /slicr/`
 - Ветка: `stage-2/monitor-downloader` (ты на ней)
 - Среда: macOS, Python 3.13, venv в `.venv/`
-- Запуск: `python -m video_clipper`
+- Запуск: `python -m slicr`
 
 ## Обязательно прочитай перед началом
 
-### Проект video-clipper:
+### Проект slicr:
 1. `docs/CLAUDE.md` — правила проекта, архитектура, правила импортов
 2. `docs/MODULE_MAP.md` — карта модулей, утверждённая структура
-3. `src/video_clipper/config.py` — текущий конфиг (будешь расширять)
-4. `src/video_clipper/constants.py` — enum-ы статусов
-5. `src/video_clipper/database/models.py` — все CRUD-методы БД
-6. `src/video_clipper/database/connection.py` — ConnectionMixin
+3. `src/slicr/config.py` — текущий конфиг (будешь расширять)
+4. `src/slicr/constants.py` — enum-ы статусов
+5. `src/slicr/database/models.py` — все CRUD-методы БД
+6. `src/slicr/database/connection.py` — ConnectionMixin
 7. `creds.example.json` — шаблон конфига (будешь расширять)
 8. Текущие заглушки: `pipeline/monitor.py`, `services/telegram_client.py`
-9. `src/video_clipper/__main__.py` — точка входа (будешь обновлять)
+9. `src/slicr/__main__.py` — точка входа (будешь обновлять)
 10. `tests/conftest.py` — существующие фикстуры
 
 ### Референс — TGForwardez (ИЗУЧИ и АДАПТИРУЙ):
@@ -80,7 +80,7 @@ Source каналы (20+)
 
 ---
 
-## Модуль 1: `src/video_clipper/services/telegram_client.py`
+## Модуль 1: `src/slicr/services/telegram_client.py`
 
 ### Ответственность
 Изоляция Telethon от остального кода (Правило 4). Один экземпляр на всё приложение. Создаётся в `__main__.py`, передаётся через DI (Dependency Injection).
@@ -91,7 +91,7 @@ Source каналы (20+)
 import logging
 from typing import Callable
 
-from video_clipper.config import Config
+from slicr.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +108,7 @@ class TelegramClientWrapper:
 
         Session:
         - Если config.session_string задан — StringSession
-        - Иначе — файловая сессия "video_clipper" (создаст video_clipper.session)
+        - Иначе — файловая сессия "slicr" (создаст slicr.session)
 
         Proxy:
         - config.proxy = None → прямое подключение
@@ -206,7 +206,7 @@ from telethon.sessions import StringSession
 if config.session_string:
     session = StringSession(config.session_string)
 else:
-    session = "video_clipper"  # файл video_clipper.session
+    session = "slicr"  # файл slicr.session
 
 # Proxy
 proxy = None
@@ -267,7 +267,7 @@ async def download_media(self, message, file_path, progress_callback=None):
 
 ---
 
-## Модуль 2: `src/video_clipper/pipeline/monitor.py`
+## Модуль 2: `src/slicr/pipeline/monitor.py`
 
 ### Ответственность
 Слушает Telegram-каналы в реальном времени. При получении подходящего видео:
@@ -281,10 +281,10 @@ async def download_media(self, message, file_path, progress_callback=None):
 ```python
 import asyncio
 import logging
-from video_clipper.config import Config
-from video_clipper.constants import VideoStatus
-from video_clipper.database import Database
-from video_clipper.services.telegram_client import TelegramClientWrapper
+from slicr.config import Config
+from slicr.constants import VideoStatus
+from slicr.database import Database
+from slicr.services.telegram_client import TelegramClientWrapper
 
 logger = logging.getLogger(__name__)
 
@@ -484,7 +484,7 @@ if video_info is None:
 
 ## Изменения в существующих файлах
 
-### 1. `src/video_clipper/config.py` — РАСШИРИТЬ
+### 1. `src/slicr/config.py` — РАСШИРИТЬ
 
 Добавить новые поля в dataclass `Config`:
 
@@ -592,14 +592,14 @@ config = Config(
 }
 ```
 
-### 3. `src/video_clipper/__main__.py` — ОБНОВИТЬ
+### 3. `src/slicr/__main__.py` — ОБНОВИТЬ
 
 ```python
 async def main():
     # 1-5: (БЕЗ ИЗМЕНЕНИЙ — загрузка конфига, логирование, баннер, БД)
 
     # 6. Инициализировать Telegram-клиент (DI: создаём здесь, передаём всем)
-    from video_clipper.services.telegram_client import TelegramClientWrapper
+    from slicr.services.telegram_client import TelegramClientWrapper
 
     tg_client = TelegramClientWrapper(config)
 
@@ -610,19 +610,19 @@ async def main():
         logger.info("Telegram client: MOCK mode (skipped)")
 
     # 7. Инициализировать Monitor
-    from video_clipper.pipeline.monitor import TelegramMonitor
+    from slicr.pipeline.monitor import TelegramMonitor
 
     monitor = TelegramMonitor(config, db, tg_client)
     await monitor.start()
 
     # 8. Импортировать остальные заглушки (проверка что грузятся)
-    from video_clipper.pipeline.orchestrator import PipelineOrchestrator
-    from video_clipper.pipeline.downloader import VideoDownloader
-    from video_clipper.pipeline.transcriber import WhisperTranscriber
-    from video_clipper.pipeline.selector import MomentSelector
-    from video_clipper.pipeline.editor import VideoEditor
-    from video_clipper.pipeline.publisher import ClipPublisher
-    from video_clipper.gpu.guard import GPUGuard
+    from slicr.pipeline.orchestrator import PipelineOrchestrator
+    from slicr.pipeline.downloader import VideoDownloader
+    from slicr.pipeline.transcriber import WhisperTranscriber
+    from slicr.pipeline.selector import MomentSelector
+    from slicr.pipeline.editor import VideoEditor
+    from slicr.pipeline.publisher import ClipPublisher
+    from slicr.gpu.guard import GPUGuard
 
     logger.info("All modules loaded")
     logger.info("Monitor active. Stages 2b-8: stubs.")
@@ -678,7 +678,7 @@ def config():
 Скопировать из TGF (`/Users/dvofis/Desktop/Програмирование/TGForwardez/scripts/generate_session_string.py`) и адаптировать:
 
 - Изменить: загрузку api_id/api_hash из `creds.json` (наш формат)
-- Изменить: имя сессии на "video_clipper"
+- Изменить: имя сессии на "slicr"
 - Оставить: оба метода аутентификации (QR + phone/SMS)
 - Добавить: `chmod +x scripts/generate_session.py` после создания
 
@@ -694,9 +694,9 @@ def config():
 import pytest
 import pytest_asyncio
 
-from video_clipper.config import Config
-from video_clipper.database import Database
-from video_clipper.constants import VideoStatus
+from slicr.config import Config
+from slicr.database import Database
+from slicr.constants import VideoStatus
 
 
 # ─────────────────────────────────────────────────────
@@ -752,7 +752,7 @@ class TestTelegramClientWrapper:
 
     def test_init_no_proxy(self, config):
         """Создание клиента без прокси."""
-        from video_clipper.services.telegram_client import TelegramClientWrapper
+        from slicr.services.telegram_client import TelegramClientWrapper
         wrapper = TelegramClientWrapper(config)
         assert wrapper is not None
         assert wrapper.client is not None
@@ -760,20 +760,20 @@ class TestTelegramClientWrapper:
     def test_init_session_string(self, config):
         """Создание клиента с session_string."""
         config.session_string = "1AbC2dEf3..."
-        from video_clipper.services.telegram_client import TelegramClientWrapper
+        from slicr.services.telegram_client import TelegramClientWrapper
         wrapper = TelegramClientWrapper(config)
         assert wrapper is not None
 
     def test_init_socks5_proxy(self, config):
         """Создание клиента с SOCKS5 прокси."""
         config.proxy = {"type": "socks5", "host": "127.0.0.1", "port": 1080}
-        from video_clipper.services.telegram_client import TelegramClientWrapper
+        from slicr.services.telegram_client import TelegramClientWrapper
         wrapper = TelegramClientWrapper(config)
         assert wrapper is not None
 
     def test_extract_video_info_none(self, config):
         """extract_video_info возвращает None для не-видео."""
-        from video_clipper.services.telegram_client import TelegramClientWrapper
+        from slicr.services.telegram_client import TelegramClientWrapper
         from unittest.mock import MagicMock
         msg = MagicMock()
         msg.video = None
@@ -788,8 +788,8 @@ class TestTelegramMonitor:
 
     def test_init(self, config, db):
         """Инициализация монитора."""
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.monitor import TelegramMonitor
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.monitor import TelegramMonitor
         tg = TelegramClientWrapper(config)
         monitor = TelegramMonitor(config, db, tg)
         assert monitor._running is False
@@ -797,8 +797,8 @@ class TestTelegramMonitor:
     async def test_mock_start(self, config, db):
         """Mock-режим: start() не подключается к Telegram."""
         config.mock_monitor = True
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.monitor import TelegramMonitor
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.monitor import TelegramMonitor
         tg = TelegramClientWrapper(config)
         monitor = TelegramMonitor(config, db, tg)
         await monitor.start()
@@ -807,8 +807,8 @@ class TestTelegramMonitor:
     async def test_sync_sources(self, config, db):
         """Синхронизация source_channels из конфига в БД."""
         config.source_channels = [-1001111111111, -1002222222222]
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.monitor import TelegramMonitor
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.monitor import TelegramMonitor
         tg = TelegramClientWrapper(config)
         monitor = TelegramMonitor(config, db, tg)
         await monitor._sync_sources()
@@ -819,8 +819,8 @@ class TestTelegramMonitor:
 
     def test_text_filter_no_filter(self, config, db):
         """Без фильтров — пропускает всё."""
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.monitor import TelegramMonitor
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.monitor import TelegramMonitor
         tg = TelegramClientWrapper(config)
         monitor = TelegramMonitor(config, db, tg)
         assert monitor._check_text_filter(None) is True
@@ -830,8 +830,8 @@ class TestTelegramMonitor:
     def test_text_filter_keywords(self, config, db):
         """Whitelist: пропускает только посты с ключевыми словами."""
         config.filter_keywords = ["подкаст", "интервью"]
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.monitor import TelegramMonitor
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.monitor import TelegramMonitor
         tg = TelegramClientWrapper(config)
         monitor = TelegramMonitor(config, db, tg)
         assert monitor._check_text_filter("Новый подкаст с гостем") is True
@@ -842,8 +842,8 @@ class TestTelegramMonitor:
     def test_text_filter_stopwords(self, config, db):
         """Blacklist: блокирует посты со стоп-словами."""
         config.filter_stopwords = ["реклама", "#ad"]
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.monitor import TelegramMonitor
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.monitor import TelegramMonitor
         tg = TelegramClientWrapper(config)
         monitor = TelegramMonitor(config, db, tg)
         assert monitor._check_text_filter("Отличное видео") is True
@@ -854,8 +854,8 @@ class TestTelegramMonitor:
         """Whitelist + Blacklist одновременно."""
         config.filter_keywords = ["подкаст"]
         config.filter_stopwords = ["реклама"]
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.monitor import TelegramMonitor
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.monitor import TelegramMonitor
         tg = TelegramClientWrapper(config)
         monitor = TelegramMonitor(config, db, tg)
         assert monitor._check_text_filter("Подкаст #42") is True
@@ -884,7 +884,7 @@ class TestConfigNewFields:
     def test_load_proxy(self, tmp_path):
         """Загрузка прокси из JSON."""
         import json
-        from video_clipper.config import load_config
+        from slicr.config import load_config
         creds = {"dev_mode": True, "proxy": {"type": "socks5", "host": "1.2.3.4", "port": 1080}}
         path = tmp_path / "creds.json"
         path.write_text(json.dumps(creds))
@@ -894,7 +894,7 @@ class TestConfigNewFields:
     def test_load_session_string(self, tmp_path):
         """Загрузка session_string из JSON."""
         import json
-        from video_clipper.config import load_config
+        from slicr.config import load_config
         creds = {"dev_mode": True, "session_string": "abc123"}
         path = tmp_path / "creds.json"
         path.write_text(json.dumps(creds))
@@ -904,7 +904,7 @@ class TestConfigNewFields:
     def test_load_filter_keywords(self, tmp_path):
         """Загрузка keywords/stopwords из JSON."""
         import json
-        from video_clipper.config import load_config
+        from slicr.config import load_config
         creds = {
             "dev_mode": True,
             "filter_keywords": ["подкаст"],
@@ -931,7 +931,7 @@ class TestConfigNewFields:
 8. **Mock-режим обязателен** — код должен работать на Mac без Telegram.
 9. **Не трогай** downloader.py, transcriber.py, selector.py, editor.py, publisher.py — только заглушки.
 10. Тесты: `python -m pytest tests/ -v`
-11. Dev-запуск: `VIDEO_CLIPPER_DEV=1 VIDEO_CLIPPER_MOCK_GPU=1 VIDEO_CLIPPER_MOCK_SELECTOR=1 python -m video_clipper`
+11. Dev-запуск: `SLICR_DEV=1 SLICR_MOCK_GPU=1 SLICR_MOCK_SELECTOR=1 python -m slicr`
 
 ## Порядок реализации
 

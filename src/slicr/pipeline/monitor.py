@@ -12,10 +12,10 @@ import asyncio
 import logging
 from typing import Callable
 
-from video_clipper.config import Config
-from video_clipper.constants import VideoStatus
-from video_clipper.database import Database
-from video_clipper.services.telegram_client import TelegramClientWrapper
+from slicr.config import Config
+from slicr.constants import VideoStatus
+from slicr.database import Database
+from slicr.services.telegram_client import TelegramClientWrapper
 
 logger = logging.getLogger(__name__)
 
