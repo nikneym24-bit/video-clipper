@@ -3,9 +3,9 @@
 import pytest
 import pytest_asyncio
 
-from video_clipper.config import Config
-from video_clipper.database import Database
-from video_clipper.constants import VideoStatus
+from slicr.config import Config
+from slicr.database import Database
+from slicr.constants import VideoStatus
 
 
 # ─────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ class TestTelegramClientWrapper:
 
     def test_init_no_proxy(self, config):
         """Создание клиента без прокси."""
-        from video_clipper.services.telegram_client import TelegramClientWrapper
+        from slicr.services.telegram_client import TelegramClientWrapper
         wrapper = TelegramClientWrapper(config)
         assert wrapper is not None
         assert wrapper.client is not None
@@ -72,7 +72,7 @@ class TestTelegramClientWrapper:
         config.session_string = "some_session_string"
         with patch("telethon.sessions.StringSession") as mock_ss:
             mock_ss.return_value = MagicMock()
-            from video_clipper.services.telegram_client import TelegramClientWrapper
+            from slicr.services.telegram_client import TelegramClientWrapper
             with patch("telethon.TelegramClient"):
                 wrapper = TelegramClientWrapper(config)
                 assert wrapper is not None
@@ -81,13 +81,13 @@ class TestTelegramClientWrapper:
     def test_init_socks5_proxy(self, config):
         """Создание клиента с SOCKS5 прокси."""
         config.proxy = {"type": "socks5", "host": "127.0.0.1", "port": 1080}
-        from video_clipper.services.telegram_client import TelegramClientWrapper
+        from slicr.services.telegram_client import TelegramClientWrapper
         wrapper = TelegramClientWrapper(config)
         assert wrapper is not None
 
     def test_extract_video_info_none(self, config):
         """extract_video_info возвращает None для не-видео."""
-        from video_clipper.services.telegram_client import TelegramClientWrapper
+        from slicr.services.telegram_client import TelegramClientWrapper
         from unittest.mock import MagicMock
         msg = MagicMock()
         msg.video = None
@@ -95,7 +95,7 @@ class TestTelegramClientWrapper:
 
     def test_extract_video_info_with_video(self, config):
         """extract_video_info возвращает dict для видео."""
-        from video_clipper.services.telegram_client import TelegramClientWrapper
+        from slicr.services.telegram_client import TelegramClientWrapper
         from unittest.mock import MagicMock
         from telethon.tl.types import DocumentAttributeVideo
 
@@ -127,8 +127,8 @@ class TestTelegramMonitor:
 
     def test_init(self, config, db):
         """Инициализация монитора."""
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.monitor import TelegramMonitor
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.monitor import TelegramMonitor
         tg = TelegramClientWrapper(config)
         monitor = TelegramMonitor(config, db, tg)
         assert monitor._running is False
@@ -137,8 +137,8 @@ class TestTelegramMonitor:
     async def test_mock_start(self, config, db):
         """Mock-режим: start() не подключается к Telegram."""
         config.mock_monitor = True
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.monitor import TelegramMonitor
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.monitor import TelegramMonitor
         tg = TelegramClientWrapper(config)
         monitor = TelegramMonitor(config, db, tg)
         await monitor.start()
@@ -148,8 +148,8 @@ class TestTelegramMonitor:
     async def test_sync_sources(self, config, db):
         """Синхронизация source_channels из конфига в БД."""
         config.source_channels = [-1001111111111, -1002222222222]
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.monitor import TelegramMonitor
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.monitor import TelegramMonitor
         tg = TelegramClientWrapper(config)
         monitor = TelegramMonitor(config, db, tg)
         await monitor._sync_sources()
@@ -160,8 +160,8 @@ class TestTelegramMonitor:
 
     def test_text_filter_no_filter(self, config, db):
         """Без фильтров — пропускает всё."""
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.monitor import TelegramMonitor
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.monitor import TelegramMonitor
         tg = TelegramClientWrapper(config)
         monitor = TelegramMonitor(config, db, tg)
         assert monitor._check_text_filter(None) is True
@@ -171,8 +171,8 @@ class TestTelegramMonitor:
     def test_text_filter_keywords(self, config, db):
         """Whitelist: пропускает только посты с ключевыми словами."""
         config.filter_keywords = ["подкаст", "интервью"]
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.monitor import TelegramMonitor
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.monitor import TelegramMonitor
         tg = TelegramClientWrapper(config)
         monitor = TelegramMonitor(config, db, tg)
         assert monitor._check_text_filter("Новый подкаст с гостем") is True
@@ -183,8 +183,8 @@ class TestTelegramMonitor:
     def test_text_filter_stopwords(self, config, db):
         """Blacklist: блокирует посты со стоп-словами."""
         config.filter_stopwords = ["реклама", "#ad"]
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.monitor import TelegramMonitor
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.monitor import TelegramMonitor
         tg = TelegramClientWrapper(config)
         monitor = TelegramMonitor(config, db, tg)
         assert monitor._check_text_filter("Отличное видео") is True
@@ -195,8 +195,8 @@ class TestTelegramMonitor:
         """Whitelist + Blacklist одновременно."""
         config.filter_keywords = ["подкаст"]
         config.filter_stopwords = ["реклама"]
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.monitor import TelegramMonitor
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.monitor import TelegramMonitor
         tg = TelegramClientWrapper(config)
         monitor = TelegramMonitor(config, db, tg)
         assert monitor._check_text_filter("Подкаст #42") is True
@@ -225,7 +225,7 @@ class TestConfigNewFields:
     def test_load_proxy(self, tmp_path):
         """Загрузка прокси из JSON."""
         import json
-        from video_clipper.config import load_config
+        from slicr.config import load_config
         creds = {"dev_mode": True, "proxy": {"type": "socks5", "host": "1.2.3.4", "port": 1080}}
         path = tmp_path / "creds.json"
         path.write_text(json.dumps(creds))
@@ -235,7 +235,7 @@ class TestConfigNewFields:
     def test_load_session_string(self, tmp_path):
         """Загрузка session_string из JSON."""
         import json
-        from video_clipper.config import load_config
+        from slicr.config import load_config
         creds = {"dev_mode": True, "session_string": "abc123"}
         path = tmp_path / "creds.json"
         path.write_text(json.dumps(creds))
@@ -245,7 +245,7 @@ class TestConfigNewFields:
     def test_load_filter_keywords(self, tmp_path):
         """Загрузка keywords/stopwords из JSON."""
         import json
-        from video_clipper.config import load_config
+        from slicr.config import load_config
         creds = {
             "dev_mode": True,
             "filter_keywords": ["подкаст"],

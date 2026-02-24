@@ -4,9 +4,9 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 
-from video_clipper.config import load_config
-from video_clipper.database import Database
-from video_clipper.utils.logging_config import setup_logging
+from slicr.config import load_config
+from slicr.database import Database
+from slicr.utils.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ async def main():
     logger.info(f"Database ready: {config.db_path}")
 
     # 6. Инициализировать Telegram-клиент (Telethon)
-    from video_clipper.services.telegram_client import TelegramClientWrapper
+    from slicr.services.telegram_client import TelegramClientWrapper
 
     tg_client = TelegramClientWrapper(config)
 
@@ -55,8 +55,8 @@ async def main():
         logger.info("Telegram client: MOCK mode (skipped)")
 
     # 7. Инициализировать aiogram Bot + Dispatcher
-    from video_clipper.bot.keyboards import get_moderation_keyboard, format_video_info
-    from video_clipper.bot import moderation, handlers
+    from slicr.bot.keyboards import get_moderation_keyboard, format_video_info
+    from slicr.bot import moderation, handlers
 
     aiogram_bot = None
     dp = None
@@ -96,13 +96,13 @@ async def main():
         logger.debug(f"Moderation keyboard sent for video {video_id}")
 
     # 9. Инициализировать Monitor с callback
-    from video_clipper.pipeline.monitor import TelegramMonitor
+    from slicr.pipeline.monitor import TelegramMonitor
 
     monitor = TelegramMonitor(config, db, tg_client, on_new_video=on_new_video)
     await monitor.start()
 
     # 10. Downloader (Stage 2c)
-    from video_clipper.pipeline.downloader import VideoDownloader
+    from slicr.pipeline.downloader import VideoDownloader
 
     downloader = VideoDownloader(config, db, tg_client)
     await downloader.start()
@@ -121,12 +121,12 @@ async def main():
         asyncio.create_task(periodic_cleanup())
 
     # Загрузить остальные заглушки (проверка что грузятся)
-    from video_clipper.pipeline.orchestrator import PipelineOrchestrator
-    from video_clipper.pipeline.transcriber import WhisperTranscriber
-    from video_clipper.pipeline.selector import MomentSelector
-    from video_clipper.pipeline.editor import VideoEditor
-    from video_clipper.pipeline.publisher import ClipPublisher
-    from video_clipper.gpu.guard import GPUGuard
+    from slicr.pipeline.orchestrator import PipelineOrchestrator
+    from slicr.pipeline.transcriber import WhisperTranscriber
+    from slicr.pipeline.selector import MomentSelector
+    from slicr.pipeline.editor import VideoEditor
+    from slicr.pipeline.publisher import ClipPublisher
+    from slicr.gpu.guard import GPUGuard
 
     logger.info("All modules loaded. System ready.")
 

@@ -12,10 +12,10 @@ import logging
 import os
 from pathlib import Path
 
-from video_clipper.config import Config
-from video_clipper.constants import VideoStatus, JobType, JobStatus
-from video_clipper.database import Database
-from video_clipper.services.telegram_client import TelegramClientWrapper
+from slicr.config import Config
+from slicr.constants import VideoStatus, JobType, JobStatus
+from slicr.database import Database
+from slicr.services.telegram_client import TelegramClientWrapper
 
 logger = logging.getLogger(__name__)
 

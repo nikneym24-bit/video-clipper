@@ -2,7 +2,7 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from video_clipper.database.models import Database
+    from slicr.database.models import Database
 
 logger = logging.getLogger(__name__)
 

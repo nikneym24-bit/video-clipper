@@ -7,8 +7,8 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from video_clipper.database import Database
-from video_clipper.services.telegram_client import TelegramClientWrapper
+from slicr.database import Database
+from slicr.services.telegram_client import TelegramClientWrapper
 
 logger = logging.getLogger(__name__)
 

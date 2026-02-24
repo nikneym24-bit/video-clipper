@@ -4,9 +4,9 @@ import pytest
 import pytest_asyncio
 from pathlib import Path
 
-from video_clipper.config import Config
-from video_clipper.database import Database
-from video_clipper.constants import VideoStatus, JobType, JobStatus
+from slicr.config import Config
+from slicr.database import Database
+from slicr.constants import VideoStatus, JobType, JobStatus
 
 
 @pytest_asyncio.fixture
@@ -52,16 +52,16 @@ class TestVideoDownloader:
 
     def test_init(self, config, db):
         """Инициализация загрузчика."""
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.downloader import VideoDownloader
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.downloader import VideoDownloader
         tg = TelegramClientWrapper(config)
         dl = VideoDownloader(config, db, tg)
         assert dl._running is False
 
     async def test_download_nonexistent(self, config, db):
         """Скачивание несуществующего видео → None."""
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.downloader import VideoDownloader
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.downloader import VideoDownloader
         tg = TelegramClientWrapper(config)
         dl = VideoDownloader(config, db, tg)
         result = await dl.download(9999)
@@ -70,8 +70,8 @@ class TestVideoDownloader:
     async def test_mock_download(self, config, db):
         """Mock-режим: создаёт пустой файл."""
         config.mock_monitor = True
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.downloader import VideoDownloader
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.downloader import VideoDownloader
         tg = TelegramClientWrapper(config)
         dl = VideoDownloader(config, db, tg)
 
@@ -94,8 +94,8 @@ class TestVideoDownloader:
     async def test_mock_download_creates_directory(self, config, db):
         """Mock: создаёт директорию downloads/ если не существует."""
         config.mock_monitor = True
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.downloader import VideoDownloader
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.downloader import VideoDownloader
         tg = TelegramClientWrapper(config)
         dl = VideoDownloader(config, db, tg)
 
@@ -107,8 +107,8 @@ class TestVideoDownloader:
 
     async def test_cleanup_no_files(self, config, db):
         """Очистка при пустой БД."""
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.downloader import VideoDownloader
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.downloader import VideoDownloader
         tg = TelegramClientWrapper(config)
         dl = VideoDownloader(config, db, tg)
         await dl.cleanup_old_files()  # не должен упасть
@@ -116,16 +116,16 @@ class TestVideoDownloader:
     async def test_cleanup_disabled(self, config, db):
         """Очистка отключена в конфиге."""
         config.cleanup_enabled = False
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.downloader import VideoDownloader
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.downloader import VideoDownloader
         tg = TelegramClientWrapper(config)
         dl = VideoDownloader(config, db, tg)
         await dl.cleanup_old_files()  # не должен упасть
 
     def test_progress_callback(self, config, db):
         """Прогресс-callback не падает."""
-        from video_clipper.services.telegram_client import TelegramClientWrapper
-        from video_clipper.pipeline.downloader import VideoDownloader
+        from slicr.services.telegram_client import TelegramClientWrapper
+        from slicr.pipeline.downloader import VideoDownloader
         tg = TelegramClientWrapper(config)
         dl = VideoDownloader(config, db, tg)
         cb = dl._make_progress_callback(1)

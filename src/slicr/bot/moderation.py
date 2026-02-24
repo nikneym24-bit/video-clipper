@@ -5,8 +5,8 @@ import logging
 from aiogram import Router
 from aiogram.types import CallbackQuery
 
-from video_clipper.constants import VideoStatus, JobType
-from video_clipper.database import Database
+from slicr.constants import VideoStatus, JobType
+from slicr.database import Database
 
 logger = logging.getLogger(__name__)
 

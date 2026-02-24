@@ -11,7 +11,7 @@ import asyncio
 import logging
 from typing import Any, Callable
 
-from video_clipper.config import Config
+from slicr.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class TelegramClientWrapper:
 
         Session:
         - Если config.session_string задан — StringSession
-        - Иначе — файловая сессия "video_clipper" (создаст video_clipper.session)
+        - Иначе — файловая сессия "slicr" (создаст slicr.session)
 
         Proxy:
         - config.proxy = None → прямое подключение
@@ -42,7 +42,7 @@ class TelegramClientWrapper:
         if config.session_string:
             session = StringSession(config.session_string)
         else:
-            session = "video_clipper"  # файл video_clipper.session
+            session = "slicr"  # файл slicr.session
 
         # Proxy
         proxy = None

@@ -1,7 +1,7 @@
 import logging
 from typing import Any
 
-from video_clipper.database.connection import ConnectionMixin
+from slicr.database.connection import ConnectionMixin
 
 logger = logging.getLogger(__name__)
 

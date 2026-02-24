@@ -3,9 +3,9 @@
 import pytest
 import pytest_asyncio
 
-from video_clipper.config import Config
-from video_clipper.database import Database
-from video_clipper.constants import VideoStatus, JobType
+from slicr.config import Config
+from slicr.database import Database
+from slicr.constants import VideoStatus, JobType
 
 
 @pytest_asyncio.fixture
@@ -24,7 +24,7 @@ class TestKeyboards:
 
     def test_moderation_keyboard(self):
         """Клавиатура модерации содержит Approve и Reject."""
-        from video_clipper.bot.keyboards import get_moderation_keyboard
+        from slicr.bot.keyboards import get_moderation_keyboard
         kb = get_moderation_keyboard(42)
         buttons = kb.inline_keyboard[0]
         assert len(buttons) == 2
@@ -33,7 +33,7 @@ class TestKeyboards:
 
     def test_format_video_info(self):
         """Форматирование инфо о видео."""
-        from video_clipper.bot.keyboards import format_video_info
+        from slicr.bot.keyboards import format_video_info
         video = {
             "id": 1,
             "source_chat_id": -1001234567890,
@@ -46,7 +46,7 @@ class TestKeyboards:
 
     def test_format_video_info_no_size(self):
         """Форматирование без размера файла."""
-        from video_clipper.bot.keyboards import format_video_info
+        from slicr.bot.keyboards import format_video_info
         video = {"id": 2, "source_chat_id": -100, "duration": 60, "file_size": 0}
         text = format_video_info(video)
         assert "60" in text
@@ -111,18 +111,18 @@ class TestDatabaseNewMethods:
 class TestParseTelegramLink:
 
     def test_https_link(self):
-        from video_clipper.bot.handlers import _parse_telegram_link
+        from slicr.bot.handlers import _parse_telegram_link
         assert _parse_telegram_link("https://t.me/channel_name") == "channel_name"
 
     def test_at_username(self):
-        from video_clipper.bot.handlers import _parse_telegram_link
+        from slicr.bot.handlers import _parse_telegram_link
         assert _parse_telegram_link("@channel_name") == "channel_name"
 
     def test_plain_username(self):
-        from video_clipper.bot.handlers import _parse_telegram_link
+        from slicr.bot.handlers import _parse_telegram_link
         assert _parse_telegram_link("channel_name") == "channel_name"
 
     def test_invalid(self):
-        from video_clipper.bot.handlers import _parse_telegram_link
+        from slicr.bot.handlers import _parse_telegram_link
         assert _parse_telegram_link("123") is None
         assert _parse_telegram_link("") is None
