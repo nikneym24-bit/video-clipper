@@ -1,19 +1,54 @@
-# Video Clipper
+# Slicr
 
-Автоматический конвейер видеоклипов: от Telegram-канала до VK Клипов.
+Automated video clip production pipeline that monitors Telegram channels, transcribes video content, selects the most engaging moments using AI, and produces short-form vertical clips.
 
-## Быстрый старт (macOS)
+## How it works
 
-```bash
-# Двойной клик по scripts/dev.command или:
-./scripts/dev.command
-
-# Или вручную:
-pip install -e .
-python -m video_clipper
+```
+Monitor Telegram channels → Download videos → Transcribe (Whisper STT)
+→ Select best moment (Claude AI) → Edit to 9:16 + subtitles (ffmpeg)
+→ Human moderation → Publish
 ```
 
-## Документация
+## Key features
 
-- [ARCHITECTURE.md](../ARCHITECTURE.md) — архитектура проекта
-- [ROADMAP.md](../docs/ROADMAP.md) — план развития
+- **Async pipeline** — built on asyncio, handles multiple videos concurrently
+- **Smart filtering** — duration, file size, keyword whitelist/blacklist, deduplication
+- **AI-powered selection** — Claude API analyzes transcripts to find the most engaging 15-60s segment
+- **Speech-to-text** — faster-whisper with word-level timestamps for precise subtitle generation
+- **Moderation UI** — Telegram bot with inline approve/reject buttons
+- **Vertical video** — automatic 9:16 crop with styled subtitles overlay
+
+## Tech stack
+
+- Python 3.13, asyncio
+- Telethon + aiogram (Telegram)
+- faster-whisper (speech recognition)
+- Claude API (content analysis)
+- ffmpeg (video processing)
+- SQLite + aiosqlite (database)
+
+## Quick start
+
+```bash
+pip install -e .
+cp creds.example.json creds.json  # fill in credentials
+python -m slicr
+```
+
+## Project structure
+
+```
+slicr/
+├── src/slicr/
+│   ├── pipeline/      # Processing stages (monitor, download, transcribe, select, edit)
+│   ├── bot/           # Telegram bot & moderation UI
+│   ├── services/      # External API clients (Telegram, Claude, VK)
+│   ├── database/      # Async SQLite layer
+│   └── utils/         # Video processing helpers
+└── tests/             # pytest + pytest-asyncio test suite
+```
+
+## License
+
+Private project.
