@@ -1,22 +1,24 @@
 # Slicr
 
-Automated video clip production pipeline that monitors Telegram channels, transcribes video content, selects the most engaging moments using AI, and produces short-form vertical clips.
+Automated video clip production pipeline that monitors Telegram channels, transcribes video content, selects the most engaging moments using AI, and produces short-form vertical clips — with mandatory human moderation before any content is published.
 
 ## How it works
 
 ```
 Monitor Telegram channels → Download videos → Transcribe (Whisper STT)
 → Select best moment (Claude AI) → Edit to 9:16 + subtitles (ffmpeg)
-→ Human moderation → Publish
+→ Human moderation (approve / reject) → Publish
 ```
+
+Every AI-selected clip goes through a **human review step** before publishing. Moderators use a Telegram bot interface with inline approve/reject buttons to review each clip, ensuring quality control and responsible content distribution.
 
 ## Key features
 
 - **Async pipeline** — built on asyncio, handles multiple videos concurrently
 - **Smart filtering** — duration, file size, keyword whitelist/blacklist, deduplication
 - **AI-powered selection** — Claude API analyzes transcripts to find the most engaging 15-60s segment
+- **Human-in-the-loop moderation** — every clip requires manual approval via Telegram bot before publishing; no content is auto-published without human review
 - **Speech-to-text** — faster-whisper with word-level timestamps for precise subtitle generation
-- **Moderation UI** — Telegram bot with inline approve/reject buttons
 - **Vertical video** — automatic 9:16 crop with styled subtitles overlay
 
 ## Tech stack
