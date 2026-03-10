@@ -137,6 +137,7 @@ src/slicr/services/
 src/slicr/gui/
 ├── __init__.py               # Re-export SlicApp
 ├── app.py                    # Главное окно (CustomTkinter, 900x600)
+├── update_dialog.py          # Диалог обновления (лаунчер-стиль)
 ├── workers.py                # ProcessingWorker (threading)
 └── frames/
     ├── input_frame.py        # Выбор видеофайлов

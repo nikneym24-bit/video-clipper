@@ -34,10 +34,73 @@ jobs:
             --hidden-import aiosqlite `
             src/slicr/__main_gui__.py
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: slicr-windows
+          path: dist/slicr.exe
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install customtkinter>=5.2.0
+          pip install pyinstaller>=6.0.0
+
+      - name: Build macOS app
+        run: |
+          pyinstaller --onefile --windowed --name slicr \
+            --add-data "src/slicr:slicr" \
+            --hidden-import customtkinter \
+            --hidden-import aiohttp \
+            --hidden-import aiosqlite \
+            src/slicr/__main_gui__.py
+
+      - name: Create DMG
+        run: |
+          mkdir -p dmg_contents
+          cp dist/slicr dmg_contents/
+          chmod +x dmg_contents/slicr
+          hdiutil create -volname "Slicr" -srcfolder dmg_contents \
+            -ov -format UDZO dist/slicr-macos.dmg
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: slicr-macos
+          path: dist/slicr-macos.dmg
+
+  release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: slicr-windows
+          path: artifacts/
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: slicr-macos
+          path: artifacts/
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/slicr.exe
+          files: |
+            artifacts/slicr.exe
+            artifacts/slicr-macos.dmg
           generate_release_notes: true
           draft: false
           prerelease: false

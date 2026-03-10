@@ -274,6 +274,7 @@ src/slicr/utils/
 src/slicr/gui/
 ├── __init__.py          # Re-export SlicApp
 ├── app.py               # Главное окно (900x600, тёмная тема)
+├── update_dialog.py     # ✅ Диалог обновления (лаунчер-стиль)
 ├── workers.py           # ProcessingWorker (threading)
 └── frames/
     ├── __init__.py

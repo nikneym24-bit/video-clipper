@@ -37,6 +37,7 @@ class ProcessingOptions:
     max_clip_duration: int = 60
     min_clip_duration: int = 15
     language: str = "ru"
+    external_subtitle_path: str | None = None
 
 
 @dataclass
@@ -122,60 +123,65 @@ class VideoProcessor:
                 on_progress(pct, msg)
 
         try:
-            # --- Шаг 1: Транскрибация ---
-            transcription: TranscriptionResult | None = None
-            if self._transcription.available:
-                _progress(0.05, "Транскрибация: извлечение аудио...")
-                try:
-                    transcription = await self._transcription.transcribe(
-                        input_path, language=options.language
-                    )
-                    transcript_text = transcription.full_text
-                    words = transcription.words
-                    steps.append("transcription")
-                    _progress(0.30, f"Транскрибация завершена: {len(words)} слов")
-                    logger.info(
-                        "Транскрибация: %d символов, %d слов, %.1fs",
-                        len(transcript_text), len(words),
-                        transcription.processing_time,
-                    )
-                except Exception as e:
-                    logger.error("Ошибка транскрибации: %s", e)
-                    _progress(0.30, f"Транскрибация пропущена: {e}")
+            # --- Внешние субтитры: пропускаем транскрибацию и AI ---
+            if options.external_subtitle_path:
+                _progress(0.30, "Используем готовые субтитры — API не нужен")
+                steps.append("external_subtitles")
             else:
-                _progress(0.30, "Транскрибация пропущена (нет API-ключа Groq)")
-
-            # --- Шаг 2: AI-отбор моментов ---
-            if (
-                options.ai_select_enabled
-                and self._claude_available
-                and transcript_text
-            ):
-                _progress(0.35, "AI-отбор лучших моментов...")
-                try:
-                    duration = await self._get_duration(input_path)
-                    ai_selections = await self._select_moments(
-                        transcript_text,
-                        transcription,
-                        duration,
-                        options,
-                    )
-                    if ai_selections:
-                        steps.append("ai_selection")
-                        _progress(
-                            0.45,
-                            f"AI выбрал {len(ai_selections)} моментов",
+                # --- Шаг 1: Транскрибация ---
+                transcription: TranscriptionResult | None = None
+                if self._transcription.available:
+                    _progress(0.05, "Транскрибация: извлечение аудио...")
+                    try:
+                        transcription = await self._transcription.transcribe(
+                            input_path, language=options.language
                         )
-                    else:
-                        _progress(0.45, "AI не нашёл подходящих моментов, берём всё видео")
-                except Exception as e:
-                    logger.error("Ошибка AI-отбора: %s", e)
-                    _progress(0.45, f"AI-отбор пропущен: {e}")
-            else:
-                if not transcript_text:
-                    _progress(0.45, "AI-отбор пропущен (нет транскрипции)")
-                elif not self._claude_available:
-                    _progress(0.45, "AI-отбор пропущен (нет API-ключа Claude)")
+                        transcript_text = transcription.full_text
+                        words = transcription.words
+                        steps.append("transcription")
+                        _progress(0.30, f"Транскрибация завершена: {len(words)} слов")
+                        logger.info(
+                            "Транскрибация: %d символов, %d слов, %.1fs",
+                            len(transcript_text), len(words),
+                            transcription.processing_time,
+                        )
+                    except Exception as e:
+                        logger.error("Ошибка транскрибации: %s", e)
+                        _progress(0.30, f"Транскрибация пропущена: {e}")
+                else:
+                    _progress(0.30, "Транскрибация пропущена (нет API-ключа Groq)")
+
+                # --- Шаг 2: AI-отбор моментов ---
+                if (
+                    options.ai_select_enabled
+                    and self._claude_available
+                    and transcript_text
+                ):
+                    _progress(0.35, "AI-отбор лучших моментов...")
+                    try:
+                        duration = await self._get_duration(input_path)
+                        ai_selections = await self._select_moments(
+                            transcript_text,
+                            transcription,
+                            duration,
+                            options,
+                        )
+                        if ai_selections:
+                            steps.append("ai_selection")
+                            _progress(
+                                0.45,
+                                f"AI выбрал {len(ai_selections)} моментов",
+                            )
+                        else:
+                            _progress(0.45, "AI не нашёл подходящих моментов, берём всё видео")
+                    except Exception as e:
+                        logger.error("Ошибка AI-отбора: %s", e)
+                        _progress(0.45, f"AI-отбор пропущен: {e}")
+                else:
+                    if not transcript_text:
+                        _progress(0.45, "AI-отбор пропущен (нет транскрипции)")
+                    elif not self._claude_available:
+                        _progress(0.45, "AI-отбор пропущен (нет API-ключа Claude)")
 
             # --- Шаг 3: Обработка каждого момента (или всего видео) ---
             clips: list[ClipResult] = []
@@ -196,50 +202,80 @@ class VideoProcessor:
                 if clip:
                     clips.append(clip)
             else:
-                # Обрабатываем каждый момент
+                # Обрабатываем клипы параллельно (семафор ограничивает
+                # кол-во одновременных ffmpeg-процессов)
+                import asyncio as _aio
+
                 total = len(ai_selections)
-                for idx, moment in enumerate(ai_selections):
+                sem = _aio.Semaphore(3)
+                completed = _aio.Lock()
+                completed_count = 0
+
+                async def _process_moment(
+                    idx: int, moment: dict
+                ) -> ClipResult | None:
+                    nonlocal completed_count
                     start_time = float(moment["start_time"])
                     end_time = float(moment["end_time"])
                     clip_stem = f"{stem}_clip{idx + 1}"
                     moment_words = self._shift_words(words, start_time, end_time)
 
-                    pct_start = 0.45 + (0.55 * idx / total)
-                    pct_end = 0.45 + (0.55 * (idx + 1) / total)
+                    async with sem:
+                        _progress(
+                            0.45 + (0.55 * idx / total),
+                            f"Клип {idx + 1}/{total}: "
+                            f"[{start_time:.1f}-{end_time:.1f}] "
+                            f"{moment.get('title', '')}",
+                        )
 
-                    _progress(
-                        pct_start,
-                        f"Клип {idx + 1}/{total}: "
-                        f"[{start_time:.1f}-{end_time:.1f}] "
-                        f"{moment.get('title', '')}",
-                    )
+                        # Нарезка фрагмента
+                        segment_path = os.path.join(
+                            output_dir, f"_segment_{clip_stem}.mp4"
+                        )
+                        temp_files.append(segment_path)
 
-                    # Нарезка фрагмента
-                    segment_path = os.path.join(output_dir, f"_segment_{clip_stem}.mp4")
-                    temp_files.append(segment_path)
+                        result = await extract_segment(
+                            input_path, segment_path, start_time, end_time
+                        )
+                        if not result:
+                            logger.warning(f"Не удалось вырезать клип {idx + 1}")
+                            return None
 
-                    result = await extract_segment(
-                        input_path, segment_path, start_time, end_time
-                    )
-                    if not result:
-                        logger.warning(f"Не удалось вырезать клип {idx + 1}")
-                        continue
+                        pct_start = 0.45 + (0.55 * idx / total)
+                        pct_end = 0.45 + (0.55 * (idx + 1) / total)
 
-                    clip = await self._process_single_clip(
-                        input_path=segment_path,
-                        output_dir=output_dir,
-                        stem=clip_stem,
-                        words=moment_words,
-                        options=options,
-                        on_progress=_progress,
-                        pct_start=pct_start + (pct_end - pct_start) * 0.2,
-                        pct_end=pct_end,
-                        temp_files=temp_files,
-                        title=moment.get("title", ""),
-                        score=float(moment.get("score", 0)),
-                        start_time=start_time,
-                        end_time=end_time,
-                    )
+                        clip = await self._process_single_clip(
+                            input_path=segment_path,
+                            output_dir=output_dir,
+                            stem=clip_stem,
+                            words=moment_words,
+                            options=options,
+                            on_progress=_progress,
+                            pct_start=pct_start + (pct_end - pct_start) * 0.2,
+                            pct_end=pct_end,
+                            temp_files=temp_files,
+                            title=moment.get("title", ""),
+                            score=float(moment.get("score", 0)),
+                            start_time=start_time,
+                            end_time=end_time,
+                        )
+
+                        async with completed:
+                            completed_count += 1
+                            _progress(
+                                0.45 + (0.55 * completed_count / total),
+                                f"Готов клип {completed_count}/{total}",
+                            )
+
+                        return clip
+
+                results = await _aio.gather(
+                    *[
+                        _process_moment(idx, moment)
+                        for idx, moment in enumerate(ai_selections)
+                    ]
+                )
+                for idx, clip in enumerate(results):
                     if clip:
                         clips.append(clip)
                         steps.append(f"clip_{idx + 1}")
@@ -300,7 +336,19 @@ class VideoProcessor:
                 logger.warning("Ошибка кропа, продолжаем без него")
 
         # Субтитры
-        if options.subtitles_enabled and words:
+        if options.external_subtitle_path:
+            # Используем готовый .ass файл
+            on_progress(pct_start + pct_range * 0.5, "Наложение готовых субтитров...")
+            burn_result = await burn_subtitles(
+                current_path, options.external_subtitle_path, final_path
+            )
+            if burn_result:
+                result_subtitle_path = options.external_subtitle_path
+                on_progress(pct_end, "Субтитры наложены")
+            else:
+                logger.warning("Не удалось наложить внешние субтитры")
+                self._copy_to_final(current_path, final_path)
+        elif options.subtitles_enabled and words:
             on_progress(pct_start + pct_range * 0.5, f"Генерация субтитров ({len(words)} слов)...")
             ass_path = generate_ass(words, subtitle_path)
             if ass_path:
@@ -370,18 +418,68 @@ class VideoProcessor:
     def _shift_words(
         words: list[dict], start_time: float, end_time: float
     ) -> list[dict]:
-        """Отфильтровать слова в диапазоне клипа и сдвинуть таймкоды к нулю."""
-        shifted = []
+        """
+        Отфильтровать слова в диапазоне клипа, обрезать по границам
+        предложений и сдвинуть таймкоды к нулю.
+
+        Логика:
+        1. Берём слова, которые начинаются внутри клипа
+        2. Убираем хвост предыдущей мысли в начале (слова до первой точки)
+        3. Убираем начало следующей мысли в конце (слова после последней точки)
+        4. Сдвигаем таймкоды к нулю (пауза в начале = тишина без субтитров)
+        """
+        _SENT_END = {".", "!", "?"}
+
+        # Шаг 1: фильтруем по времени (строго по началу слова)
+        in_range = []
         for w in words:
             ws = w.get("start", 0)
+            if ws >= start_time and ws < end_time:
+                in_range.append(w)
+
+        if not in_range:
+            return []
+
+        # Шаг 2: обрезка хвоста предыдущего предложения в начале.
+        # Если первые слова заканчиваются точкой — это конец чужой мысли.
+        trim_start = 0
+        for i, w in enumerate(in_range):
+            word_text = w.get("word", "").strip()
+            if word_text and word_text[-1] in _SENT_END:
+                # Это конец предыдущего предложения — убираем всё до сюда
+                trim_start = i + 1
+                break
+            # Если встретили 3+ слов без точки — это уже наша мысль
+            if i >= 2:
+                break
+
+        # Шаг 3: обрезка начала следующей мысли в конце.
+        # Если последнее слово НЕ заканчивается на точку — ищем последнюю
+        # точку и обрезаем всё после неё (это начало чужой мысли).
+        trim_end = len(in_range)
+        last_word = in_range[-1].get("word", "").strip()
+        if not (last_word and last_word[-1] in _SENT_END):
+            for i in range(len(in_range) - 1, -1, -1):
+                word_text = in_range[i].get("word", "").strip()
+                if word_text and word_text[-1] in _SENT_END:
+                    trim_end = i + 1
+                    break
+
+        trimmed = in_range[trim_start:trim_end]
+        if not trimmed:
+            # Обрезка убрала всё — возвращаем исходные слова
+            trimmed = in_range
+
+        # Шаг 4: сдвиг таймкодов к нулю
+        shifted = []
+        for w in trimmed:
+            ws = w.get("start", 0)
             we = w.get("end", 0)
-            # Включаем слова, которые хотя бы частично попадают в диапазон
-            if we > start_time and ws < end_time:
-                shifted.append({
-                    "word": w.get("word", ""),
-                    "start": max(0.0, ws - start_time),
-                    "end": min(end_time - start_time, we - start_time),
-                })
+            shifted.append({
+                "word": w.get("word", ""),
+                "start": max(0.0, ws - start_time),
+                "end": min(end_time - start_time, we - start_time),
+            })
         return shifted
 
     @staticmethod

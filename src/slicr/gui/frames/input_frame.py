@@ -18,6 +18,11 @@ class InputFrame(ctk.CTkFrame):
         ("Все файлы", "*.*"),
     )
 
+    _ASS_EXTENSIONS = (
+        ("Субтитры ASS", "*.ass"),
+        ("Все файлы", "*.*"),
+    )
+
     def __init__(
         self,
         master: ctk.CTk,
@@ -26,6 +31,7 @@ class InputFrame(ctk.CTkFrame):
     ) -> None:
         super().__init__(master, **kwargs)
         self._file_paths: list[str] = []
+        self._subtitle_paths: list[str] = []
         self._on_files_changed = on_files_changed
 
         # Заголовок
@@ -48,6 +54,16 @@ class InputFrame(ctk.CTkFrame):
         )
         self._add_btn.pack(side="left")
 
+        self._ass_btn = ctk.CTkButton(
+            self._btn_frame,
+            text="Загрузить .ass",
+            command=self._on_load_ass,
+            width=130,
+            fg_color="gray30",
+            hover_color="gray20",
+        )
+        self._ass_btn.pack(side="left", padx=(10, 0))
+
         self._clear_btn = ctk.CTkButton(
             self._btn_frame,
             text="Очистить",
@@ -63,6 +79,13 @@ class InputFrame(ctk.CTkFrame):
         )
         self._count_label.pack(side="left", padx=(15, 0))
 
+        # Метка загруженного .ass
+        self._ass_label = ctk.CTkLabel(
+            self, text="", text_color="#4CAF50",
+            font=ctk.CTkFont(size=12),
+        )
+        self._ass_label.pack(padx=10, anchor="w")
+
         # Список файлов (скроллируемый)
         self._file_list = ctk.CTkScrollableFrame(self, height=120)
         self._file_list.pack(fill="both", expand=True, padx=10, pady=(5, 10))
@@ -71,6 +94,33 @@ class InputFrame(ctk.CTkFrame):
     def file_paths(self) -> list[str]:
         """Список путей выбранных видеофайлов."""
         return list(self._file_paths)
+
+    @property
+    def subtitle_paths(self) -> list[str]:
+        """Список путей к загруженным .ass файлам."""
+        return list(self._subtitle_paths)
+
+    @property
+    def subtitle_path(self) -> str | None:
+        """Первый .ass файл (обратная совместимость)."""
+        return self._subtitle_paths[0] if self._subtitle_paths else None
+
+    def _on_load_ass(self) -> None:
+        """Обработчик кнопки 'Загрузить .ass' — мульти-выбор."""
+        paths = filedialog.askopenfilenames(
+            title="Выберите файлы субтитров (.ass)",
+            filetypes=self._ASS_EXTENSIONS,
+        )
+        if paths:
+            for p in paths:
+                if p not in self._subtitle_paths:
+                    self._subtitle_paths.append(p)
+            n = len(self._subtitle_paths)
+            self._ass_label.configure(
+                text=f"Субтитры: {n} файл(ов) .ass (API не нужен)"
+            )
+            self._ass_btn.configure(fg_color="#2E7D32", text=f".ass: {n} файл(ов)")
+            logger.info("Загружено .ass файлов: %d", n)
 
     def _on_add_files(self) -> None:
         """Обработчик кнопки 'Выбрать файлы'."""
@@ -133,8 +183,11 @@ class InputFrame(ctk.CTkFrame):
             self._on_files_changed(list(self._file_paths))
 
     def clear(self) -> None:
-        """Очистить список файлов."""
+        """Очистить список файлов и субтитры."""
         self._file_paths.clear()
+        self._subtitle_paths.clear()
+        self._ass_label.configure(text="")
+        self._ass_btn.configure(fg_color="gray30", text="Загрузить .ass")
         for widget in self._file_list.winfo_children():
             widget.destroy()
         self._update_count()

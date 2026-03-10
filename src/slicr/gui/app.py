@@ -15,6 +15,7 @@ from slicr.gui.frames.preview_frame import PreviewFrame
 from slicr.gui.frames.progress_frame import ProgressFrame
 from slicr.gui.frames.results_frame import ResultsFrame
 from slicr.gui.frames.settings_frame import SettingsFrame
+from slicr.gui.update_dialog import UpdateDialog
 from slicr.gui.workers import ProcessingWorker
 from slicr.updater import AutoUpdater
 
@@ -126,6 +127,12 @@ class SlicApp(ctk.CTk):
         )
         self._progress_frame.add_log(f"Папка вывода: {output_dir}")
 
+        subtitle_paths = self._input_frame.subtitle_paths
+        if subtitle_paths:
+            self._progress_frame.add_log(
+                f"Используем готовые субтитры: {len(subtitle_paths)} файл(ов) .ass"
+            )
+
         self._worker = ProcessingWorker(
             file_paths=files,
             output_dir=output_dir,
@@ -133,6 +140,7 @@ class SlicApp(ctk.CTk):
             crop_x_offset=self._settings_frame.crop_x_offset,
             max_clip_duration=self._settings_frame.max_clip_duration,
             subtitles_enabled=self._settings_frame.subtitles_enabled,
+            external_subtitle_paths=subtitle_paths,
             on_progress=self._on_worker_progress,
             on_complete=self._on_worker_complete,
             on_error=self._on_worker_error,
@@ -167,15 +175,26 @@ class SlicApp(ctk.CTk):
             try:
                 update = self._updater.check_for_update_sync()
                 if update:
-                    self.after(0, self._show_update_banner, update.version)
+                    self.after(0, self._show_update_dialog, update)
             except Exception as e:
                 logger.debug("Проверка обновлений: %s", e)
 
         threading.Thread(target=_check, daemon=True).start()
 
-    def _show_update_banner(self, version: str) -> None:
-        """Показать баннер о доступном обновлении."""
+    def _show_update_dialog(self, update) -> None:
+        """Показать диалог обновления."""
+        # Баннер как фоллбэк, если диалог закрыли
         self._update_label.configure(
-            text=f"Доступно обновление {version} — перезапустите приложение"
+            text=f"Доступно обновление {update.version} — нажмите для установки"
         )
         self._update_banner.pack(fill="x", padx=10, pady=4, before=self._input_frame)
+        self._update_banner.bind(
+            "<Button-1>", lambda _: UpdateDialog(self, update)
+        )
+        self._update_label.bind(
+            "<Button-1>", lambda _: UpdateDialog(self, update)
+        )
+        self._update_banner.configure(cursor="hand2")
+
+        # Сразу показать диалог
+        UpdateDialog(self, update)
